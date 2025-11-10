@@ -43,4 +43,4 @@ A lightweight always-on-top clipboard overlay for Windows that shows recent text
 - Overlay shouldn’t steal focus; stays on top by design.
 
 ## License
-MIT (recommended). Add a LICENSE file in the repository root.
+MIT

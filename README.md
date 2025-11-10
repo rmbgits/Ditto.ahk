@@ -1,4 +1,5 @@
 # Ditto by RB — Lightweight Clipboard Overlay (AutoHotkey v1)
+<img width="324" height="347" alt="image" src="https://github.com/user-attachments/assets/0e234ac5-bcbd-4218-9c0d-5f4b57ae7664" />
 
 A lightweight always-on-top clipboard overlay for Windows that shows recent text clips, lets you paste instantly via click or hotkeys, and toggles between a compact collapsed view and a full list. Non-activating window and adjustable transparency.
 

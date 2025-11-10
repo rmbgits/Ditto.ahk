@@ -3,6 +3,18 @@
 
 A lightweight always-on-top clipboard overlay for Windows that shows recent text clips, lets you paste instantly via click or hotkeys, and toggles between a compact collapsed view and a full list. Non-activating window and adjustable transparency.
 
+## Download
+Get the latest version from Releases:
+https://github.com/rmbgits/Ditto.ahk/releases/latest
+
+## Shortcuts
+| Action                  | Shortcut        |
+|-------------------------|-----------------|
+| Paste item #1 … #5      | Ctrl+1 … Ctrl+5 |
+| Collapse/expand overlay | Click >>> / bar |
+| Paste on click          | List item click |
+
+
 ## Features
 - Live text clipboard history (default 10 items), de-duplicated and trimmed.
 - Instant paste by click or hotkeys Ctrl+1 … Ctrl+5 (top five items).

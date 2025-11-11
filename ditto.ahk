@@ -1,26 +1,24 @@
+/*
+Ditto by Rafał Bobrowski
+---------------------------------------------------------
+Otwarta, lekka alternatywa dla klasycznego Ditto — overlay schowka w stylu Ditto, napisany w AutoHotkey v1. 
+Zawsze‑on‑top, obsługa historii, hotkeye, zwijany tryb. 
+Autor: Rafał Bobrowski
+GitHub: https://github.com/rmbgits/Ditto.ahk
+Zapisz plik po edycji jako UTF-8 with BOM
+---------------------------------------------------------
+*/
 #NoEnv
 #Persistent
 #SingleInstance Ignore
 SetBatchLines, -1
 SetWinDelay, 0
 
-; ---------------------------
-; Optional strong singleton (uncomment to enforce across copies)
-; global hMutex := DllCall("CreateMutex", "ptr", 0, "int", true, "str", "RB.DittoAHK.Singleton", "ptr")
-; if (DllCall("GetLastError") = 183) {
-;     if WinExist("Ditto by RB")
-;         WinActivate
-;     ExitApp
-; }
-; OnExit("ReleaseMutex")
-; ReleaseMutex() {
-;     global hMutex
-;     if (hMutex)
-;         DllCall("CloseHandle", "ptr", hMutex)
-; }
-; ---------------------------
-
 WindowTitle := "Ditto by RB"
+ScriptPath := A_ScriptFullPath
+; Ustaw na true, jeśli chcesz wrócić do pliku INI
+USE_INI := false
+IniPath := A_ScriptDir . "\DittoRB.ini"
 
 MaxHistory := 10
 ClipHistory := []
@@ -45,6 +43,11 @@ global HotkeysChk
 global ClearBtn
 global RbBtn
 global ToggleBtn
+global RbValBtn
+
+; collapsed size
+global CollapsedW := 110
+global CollapsedH := 60
 
 ; Toggle geometry
 global ToggleBtnAbsX := 0
@@ -54,12 +57,7 @@ global ToggleFullH := 26
 
 global LastSeen := ""
 
-global StartX := ""
-global StartY := ""
-global StartW := ""
-global StartH := ""
-
-; Zapamiętana pełna pozycja (referencyjna dla rozwijania)
+; Restore size
 global FullX := ""
 global FullY := ""
 global FullW := ""
@@ -68,8 +66,11 @@ global FullH := ""
 global AutoPasteEnabled := true
 global HotkeysEnabled := true
 
-; --- RB: stała do wstawiania bez użycia schowka ---
-global RB_VALUE := "Twoja_stala_wartosc"   ; ustaw tutaj stałą wartość
+; RB value
+global RB_VALUE := "Rafał Bobrowski"
+if (USE_INI && FileExist(IniPath)) {
+    IniRead, RB_VALUE, %IniPath%, RB, Value, %RB_VALUE%
+}
 
 Clipboard := ""
 LastSeen := ""
@@ -79,15 +80,12 @@ SetTimer, CheckClipboard, 500
 SetTimer, __GuardTopmostAndBounds, 3000
 SetTimer, __TrackFullPosition, 800
 
-; Messages
-OnMessage(0x007E, "OnDisplayChange")   ; WM_DISPLAYCHANGE
+OnMessage(0x007E, "OnDisplayChange")
 
 ShowClipboardGUI()
 return
 
-; ---------------------------
-; Helpers
-; ---------------------------
+; --------------------------- Helpers ---------------------------
 
 FormatPreview(txt, maxLen := 27) {
     txt := StrReplace(txt, "`r", "")
@@ -127,9 +125,7 @@ InHistory(txt) {
     return false
 }
 
-; ---------------------------
-; Clipboard polling
-; ---------------------------
+; --------------------------- Clipboard polling ---------------------------
 
 CheckClipboard:
     global IsCollapsed, LastSeen, WindowTitle, MaxHistory
@@ -141,7 +137,6 @@ CheckClipboard:
         LastSeen := clipText
         if (ClipHistory.Length() > MaxHistory)
             ClipHistory.RemoveAt(MaxHistory + 1)
-
         UpdateList()
         if (WinExist(WindowTitle)) {
             WinSet, AlwaysOnTop, On, %WindowTitle%
@@ -151,34 +146,39 @@ CheckClipboard:
     }
 return
 
-; ---------------------------
-; GUI creation
-; ---------------------------
+; --------------------------- GUI creation ---------------------------
 
 ShowClipboardGUI() {
-    global ClipHistory, GuiWidth, SafeMargin, IsCollapsed
-    global MyList, CollapsedLbl, AutoPasteChk, HotkeysChk, WindowTitle
-    global AutoPasteEnabled, HotkeysEnabled
-    global M, G, TitleH, BtnH, ListH, CheckH
-    global FullX, FullY, FullW, FullH
-    global ClearBtn, RbBtn, ToggleBtn
+    global GuiWidth, SafeMargin, M, G, TitleH, BtnH, ListH, CheckH, WindowTitle
+    global MyList, CollapsedLbl, AutoPasteChk, HotkeysChk, ClearBtn, RbBtn, ToggleBtn, RbValBtn
     global ToggleBtnAbsX, ToggleBtnAbsY, ToggleFullW, ToggleFullH
 
     SysGet, MonitorWorkArea, MonitorWorkArea
 
     InnerW := GuiWidth - 2*M
-
     totalH := M + TitleH + G + ListH + G + CheckH + M
+
     x := MonitorWorkAreaRight - GuiWidth - SafeMargin
     y := MonitorWorkAreaTop + ((MonitorWorkAreaBottom - MonitorWorkAreaTop) // 2) - (totalH // 2)
 
     BtnY := M + ((TitleH - BtnH) // 2)
-    ListX := M, ListY := M + TitleH + G, ListW := InnerW
-    CheckY := ListY + ListH + G
-    HalfW := (InnerW - G) // 2
-    AutoX := M, AutoW := HalfW
-    KeysX := M + HalfW + G, KeysW := HalfW
-    CollX := M, CollY := M
+
+    ; Top row: RB value | RB | Clear | >>>
+    ValW := 84
+    RbW  := 44
+    ClrW := 56
+    TglW := ToggleFullW
+
+    TglX := M + InnerW - TglW
+    ClrX := TglX - G - ClrW
+    RbX  := ClrX - G - RbW
+    ValX := RbX - G - ValW
+    if (ValX < M) {
+        ValX := M
+        RbX := ValX + ValW + G
+        ClrX := RbX + RbW + G
+        TglX := ClrX + ClrW + G
+    }
 
     Gui, -DPIScale
     Gui, +AlwaysOnTop -Caption +Border
@@ -192,26 +192,25 @@ ShowClipboardGUI() {
     WS_EX_NOACTIVATE := 0x08000000
     DllCall("SetWindowLong", "Ptr", hwnd, "Int", -20, "UInt", exStyle | WS_EX_NOACTIVATE)
 
-    ; Top row: RB, Clear, Toggle (>>>)
-    RbW  := 44
-    ClrW := 56
-    TglW := ToggleFullW
-    TglX := M + InnerW - TglW
-    ClrX := TglX - G - ClrW
-    RbX  := ClrX - G - RbW
-
-    Gui, Add, Button, vRbBtn     gPasteRB        x%RbX%  y%BtnY% w%RbW%  h%BtnH%, RB
+    Gui, Add, Button, vRbValBtn gOpenRbValue x%ValX% y%BtnY% w%ValW% h%BtnH%, RB value
+    Gui, Add, Button, vRbBtn     gPasteRB     x%RbX%  y%BtnY% w%RbW%  h%BtnH%, RB
     Gui, Add, Button, vClearBtn  gClearClipboard x%ClrX% y%BtnY% w%ClrW% h%BtnH%, Clear
     Gui, Add, Button, vToggleBtn gToggleCollapse x%TglX% y%BtnY% w%TglW% h%BtnH%, >>>
 
     ToggleBtnAbsX := TglX
     ToggleBtnAbsY := BtnY
 
+    ListX := M, ListY := M + TitleH + G, ListW := InnerW
     Gui, Add, ListBox, vMyList gListClick x%ListX% y%ListY% w%ListW% h%ListH% AltSubmit, % BuildListItems()
-    Gui, Add, Checkbox, vAutoPasteChk gToggleAutoPaste x%AutoX% y%CheckY% w%AutoW% h%CheckH% Checked%AutoPasteEnabled%, Auto-Paste
-    Gui, Add, Checkbox, vHotkeysChk gToggleHotkeys x%KeysX% y%CheckY% w%KeysW% h%CheckH% Checked%HotkeysEnabled%, Keys(Ctrl+1)
 
-    Gui, Add, Text, vCollapsedLbl x%CollX% y%CollY% w64 h%TitleH% Center, Ditto
+    CheckY := ListY + ListH + G
+    HalfW := (InnerW - G) // 2
+    AutoX := M, AutoW := HalfW
+    KeysX := M + HalfW + G, KeysW := HalfW
+    Gui, Add, Checkbox, vAutoPasteChk gToggleAutoPaste x%AutoX% y%CheckY% w%AutoW% h%CheckH% Checked1, Auto-Paste
+    Gui, Add, Checkbox, vHotkeysChk gToggleHotkeys x%KeysX% y%CheckY% w%KeysW% h%CheckH% Checked1, Keys(Ctrl+1)
+
+    Gui, Add, Text, vCollapsedLbl x%M% y%M% w64 h%TitleH% Center, Ditto
     GuiControl, Hide, CollapsedLbl
 
     Gui, Show, x%x% y%y% w%GuiWidth% h%totalH% NA, %WindowTitle%
@@ -225,38 +224,64 @@ ShowClipboardGUI() {
         WinGetPos, wx, wy, ww, wh, %WindowTitle%
     }
 
-    ; Ustal pełną pozycję referencyjną
     FullX := wx
     FullY := wy
     FullW := ww
     FullH := wh
 
-    StartX := wx
-    StartY := wy
-    StartW := ww
-    StartH := wh
-
     IsCollapsed := false
     GuiControl, Hide, CollapsedLbl
 }
 
-; ---------------------------
-; Collapse / Expand
-; ---------------------------
+; --------------------------- RB value modal ---------------------------
+
+OpenRbValue:
+    global RB_VALUE, USE_INI, IniPath
+    Gui, RB: New, +AlwaysOnTop +Border +Owner +Caption, RB value
+    Gui, RB: Font, s10, Segoe UI
+    Gui, RB: Margin, 10, 10
+    Gui, RB: Add, Text, w320, type value u want to paste by RB button
+    Gui, RB: Add, Edit, vRBValEdit w320 h26, %RB_VALUE%
+    Gui, RB: Add, Button, gRB_Save w80 h26, Save
+    Gui, RB: Add, Button, gRB_Cancel w80 h26 x+8, Cancel
+    Gui, RB: Show, AutoSize Center
+    Gui, RB: Default
+    ControlFocus, Edit1, RB value
+return
+
+RB_Save:
+    global RB_VALUE, USE_INI, IniPath
+    Gui, RB: Submit
+    if (RBValEdit != "")
+        RB_VALUE := RBValEdit
+    if (USE_INI) {
+        IniWrite, %RB_VALUE%, %IniPath%, RB, Value
+        Gui, RB: Destroy
+    } else {
+        __UpdateSelfRBValue(RB_VALUE)
+        Gui, RB: Destroy
+        Reload
+    }
+return
+
+RB_Cancel:
+    Gui, RB: Destroy
+return
+
+; --------------------------- Collapse / Expand ---------------------------
 
 ToggleCollapse:
     global IsCollapsed, WindowTitle
-    global M, SafeMargin
+    global M, SafeMargin, CollapsedW, CollapsedH
     global FullX, FullY, FullW, FullH
-    global MyList, AutoPasteChk, HotkeysChk, ClearBtn, RbBtn, ToggleBtn, CollapsedLbl
+    global MyList, AutoPasteChk, HotkeysChk, ClearBtn, RbBtn, ToggleBtn, CollapsedLbl, RbValBtn
 
     SysGet, m, MonitorWorkArea
 
     if (!IsCollapsed) {
-        NewWidth := 110
-        NewHeight := 60
+        NewWidth := CollapsedW
+        NewHeight := CollapsedH
 
-        ; Zachowaj Y z pełnego trybu, X do prawej krawędzi
         cx := mRight - NewWidth - SafeMargin
         cy := FullY
         if (cy < mTop + SafeMargin)
@@ -270,16 +295,16 @@ ToggleCollapse:
         GuiControl, Hide, ClearBtn
         GuiControl, Hide, RbBtn
         GuiControl, Hide, ToggleBtn
+        GuiControl, Hide, RbValBtn
         GuiControl, Show, CollapsedLbl
 
         WinMove, %WindowTitle%,, cx, cy, NewWidth, NewHeight
         Gui, Show, w%NewWidth% h%NewHeight% NA
 
         IsCollapsed := true
-        OnMessage(0x201, "CollapsedClick") ; klik w zwinięte powiększa
+        OnMessage(0x201, "CollapsedClick")
         WinSet, AlwaysOnTop, On, %WindowTitle%
     } else {
-        ; Przywróć pełną pozycję
         rx := FullX, ry := FullY, rw := FullW, rh := FullH
 
         changed := false
@@ -304,6 +329,7 @@ ToggleCollapse:
         GuiControl, Show, ClearBtn
         GuiControl, Show, RbBtn
         GuiControl, Show, ToggleBtn
+        GuiControl, Show, RbValBtn
         GuiControl, Hide, CollapsedLbl
 
         UpdateList()
@@ -313,7 +339,6 @@ ToggleCollapse:
         OnMessage(0x201, "")
         WinSet, AlwaysOnTop, On, %WindowTitle%
 
-        ; Zaktualizuj bazę pełnej pozycji
         FullX := rx
         FullY := ry
         FullW := rw
@@ -328,9 +353,7 @@ __ExpandFromClick:
     Gosub, ToggleCollapse
 return
 
-; ---------------------------
-; Toggles
-; ---------------------------
+; --------------------------- Toggles & list ---------------------------
 
 ToggleAutoPaste:
     Gui, Submit, NoHide
@@ -341,10 +364,6 @@ ToggleHotkeys:
     Gui, Submit, NoHide
     HotkeysEnabled := HotkeysChk
 return
-
-; ---------------------------
-; List click paste
-; ---------------------------
 
 ListClick:
     global MyList, ClipHistory, AutoPasteEnabled
@@ -364,9 +383,7 @@ GuiClose:
     Gui, Hide
 return
 
-; ---------------------------
-; Hotkeys (Tylko Ctrl+1..Ctrl+5)
-; ---------------------------
+; --------------------------- Hotkeys historii ---------------------------
 
 ^1::PasteByNumber(1)
 ^2::PasteByNumber(2)
@@ -388,44 +405,36 @@ PasteByNumber(n) {
     }
 }
 
-; ---------------------------
-; Buttons logic
-; ---------------------------
+; --------------------------- Buttons logic ---------------------------
 
-; Clear: czyści całą historię/GUI jak po starcie (nie dotyka schowka)
 ClearClipboard:
     global ClipHistory, LastSeen, AutoPasteEnabled, HotkeysEnabled
-    ClipHistory := []             ; opróżnij historię
-    LastSeen := ""                ; wyczyść pamięć ostatniego wpisu
-    AutoPasteEnabled := true      ; reset przełączników do domyślnych
-    HotkeysEnabled := true        ; reset przełączników do domyślnych
-    GuiControl,, MyList, |        ; wyczyść ListBox
-    GuiControl,, AutoPasteChk, 1  ; zaznacz checkbox
-    GuiControl,, HotkeysChk, 1    ; zaznacz checkbox
+    ClipHistory := []
+    LastSeen := ""
+    AutoPasteEnabled := true
+    HotkeysEnabled := true
+    GuiControl,, MyList, |
+    GuiControl,, AutoPasteChk, 1
+    GuiControl,, HotkeysChk, 1
 return
 
-; RB: wstawia stały tekst bez używania schowka (wprost do aktywnego okna)
+; RB: wstawia stały tekst przez SendInput
 PasteRB:
     global RB_VALUE
-    SendInput, {Text}%RB_VALUE%
+    Sleep, 40
+    SendInput, %RB_VALUE%
 return
 
-; ---------------------------
-; Guards & utilities
-; ---------------------------
+; --------------------------- Guards & utilities ---------------------------
 
 OnDisplayChange(wParam, lParam, msg, hwnd) {
-    ; natychmiastowa kontrola po zmianie ekranu/DPI
     SetTimer, __GuardTopmostAndBounds, -1
 }
 
 __GuardTopmostAndBounds:
     global WindowTitle, SafeMargin
     if WinExist(WindowTitle) {
-        ; Reinforce TopMost
         WinSet, AlwaysOnTop, On, %WindowTitle%
-
-        ; Clamp tylko gdy realnie poza ekranem
         SysGet, m, MonitorWorkArea
         WinGetPos, gx, gy, gw, gh, %WindowTitle%
         changed := false
@@ -476,3 +485,36 @@ __ClampRect(mLeft, mTop, mRight, mBottom, ByRef x, ByRef y, ByRef w, ByRef h, ma
     if (y + h > mBottom - margin)
         y := mBottom - h - margin
 }
+
+; --------------------------- Self-update RB_VALUE ---------------------------
+
+__UpdateSelfRBValue(newVal) {
+    global ScriptPath
+    FileRead, src, %ScriptPath%
+    if (ErrorLevel) {
+        MsgBox, 16, RB, Nie udało się odczytać pliku skryptu: %ScriptPath%
+        return
+    }
+    newValEsc := StrReplace(newVal, """", """""")
+    newSrc := ""
+    replaced := false
+    Loop, Parse, src, `n, `r
+    {
+        line := A_LoopField
+        if (!replaced && RegExMatch(line, "i)^\s*global\s+RB_VALUE\s*:=")) {
+            newSrc .= "global RB_VALUE := """ newValEsc """" "`r`n"
+            replaced := true
+        } else {
+            newSrc .= line "`r`n"
+        }
+    }
+    if (!replaced) {
+        MsgBox, 48, RB, Nie znaleziono linii 'global RB_VALUE := "...' do podmiany.
+        return
+    }
+    FileDelete, %ScriptPath%
+    FileAppend, %newSrc%, %ScriptPath%, UTF-8
+}
+
+
+

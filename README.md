@@ -1,13 +1,12 @@
 # Ditto by RB — Lightweight Clipboard Overlay (AutoHotkey v1)
 
-A lightweight, always-on-top clipboard overlay for Windows that shows recent text clips, lets you paste instantly via click or hotkeys, and toggles between a compact collapsed view and a full list. Non-activating window (does not steal focus) and adjustable transparency. The RB button inserts a constant string without touching the system clipboard, and Clear resets the in-app history and toggles. [web:22][web:21][web:7]
+A lightweight, always-on-top clipboard overlay for Windows that shows recent text clips, lets you paste instantly via click or hotkeys, and toggles between a compact collapsed view and a full list. The window does not steal focus (non-activating) and is semi-transparent. The RB button types a constant string directly at the caret (without touching the system clipboard). The Clear button resets the in-app history and toggles.
 
-<img width="326" height="326" alt="image" src="https://github.com/user-attachments/assets/e3056833-6432-4a42-be87-5b0bc5a88f76" />
-
+<img width="337" height="347" alt="image" src="https://github.com/user-attachments/assets/5ba901d5-63ae-46ab-ab54-1e5d6aec1a6c" />
 
 ## Download
 Get the latest version from Releases:
-https://github.com/rmbgits/Ditto.ahk/releases/latest [web:84]
+https://github.com/rmbgits/Ditto.ahk/releases/latest
 
 ## Shortcuts
 | Action                  | Shortcut        |
@@ -16,68 +15,68 @@ https://github.com/rmbgits/Ditto.ahk/releases/latest [web:84]
 | Collapse/expand overlay | Click >>> / bar |
 | Paste on click          | List item click |
 
-Only Ctrl+1..Ctrl+5 hotkeys are active; all other global hotkeys were removed to avoid conflicts. [web:22]
+Only Ctrl+1..Ctrl+5 hotkeys are active to avoid conflicts.
 
 ## Features
-- Live text clipboard history (default 10 items), de-duplicated and trimmed to one-line previews for readability. [web:21]
-- Instant paste via clicking a list item or with Ctrl+1..Ctrl+5 for the top five items. [web:22]
-- RB button inserts a constant value directly at the cursor using SendInput with {Text}, without modifying the system clipboard. [web:7]
-- Clear button wipes in-app history and resets Auto-Paste/Hotkeys toggles to defaults, without touching the system clipboard. [web:21]
-- Collapsed mini mode shows only the “Ditto” label; expanded mode shows top row buttons (RB, Clear, >>>) and the list with toggles. [web:22][web:18]
-- Always-on-top and non-activating (WS_EX_NOACTIVATE) overlay, semi-transparent for minimal disruption. [web:22]
-- Robust screen clamping and periodic topmost reinforcement; adapts to monitor/work area changes. [web:22]
+- Live text clipboard history (default 10 items), de-duplicated and trimmed to one-line previews.
+- Instant paste via clicking a list item or with Ctrl+1..Ctrl+5 (top five items).
+- RB button types a constant value at the caret using “SendInput {Text}” (clipboard remains unchanged).
+- Clear button wipes in-app history and resets toggles (Auto-Paste ON, Hotkeys ON) without altering the system clipboard.
+- Collapsed mini mode shows only the “Ditto” label; expanded mode shows top-row buttons (RB, Clear, >>>), the list, and toggles.
+- Always-on-top, non-activating (WS_EX_NOACTIVATE) overlay with adjustable transparency.
+- Screen clamping and periodic topmost reinforcement; adapts to monitor/work area changes.
 
 ## Requirements
-- Windows 10/11. [web:22]
-- AutoHotkey v1.x (classic). [web:22]
+- Windows 10/11
+- AutoHotkey v1.x
 
 ## Quick Start
-1. Download and run Ditto-by-RB.ahk (requires AutoHotkey v1). [web:22]
-2. Copy any text; it appears at the top of the overlay list (de-duplicated, trimmed). [web:21]
-3. Click a list item to copy it into the clipboard and paste automatically if Auto-Paste is enabled. [web:21]
-4. Use Ctrl+1 … Ctrl+5 to paste items 1–5 directly into the active window. [web:22]
+1. Download and run Ditto-by-RB.ahk (requires AutoHotkey v1).
+2. Copy any text; it appears at the top of the overlay list (de-duplicated, trimmed).
+3. Click a list item to set it as the clipboard and paste automatically if Auto-Paste is enabled.
+4. Use Ctrl+1 … Ctrl+5 to paste items 1–5 directly into the active window.
 
 ## Top Row Controls (Expanded Mode)
-- RB: Types a constant value directly at the caret using `SendInput, {Text}%RB_VALUE%` (clipboard remains unchanged). [web:7]
-- Clear: Resets in-app history and sets toggles to defaults (Auto-Paste ON, Hotkeys ON); the system clipboard is not altered. [web:21]
-- >>>: Collapse/expand toggle; when collapsed, only the “Ditto” label is shown, and clicking the panel expands it. [web:22][web:18]
+- RB: Types a constant value directly at the caret using `SendInput, {Text}%RB_VALUE%` (clipboard stays intact).
+- Clear: Resets in-app history and sets toggles to defaults (Auto-Paste ON, Hotkeys ON); the Windows clipboard is not changed.
+- >>>: Collapse/expand toggle; when collapsed, only the “Ditto” label is shown. Clicking the collapsed panel expands it.
 
 ## Collapsed vs Expanded
-- Collapsed: Minimal panel with “Ditto” text; no buttons or list visible; single click anywhere expands. [web:22]
-- Expanded: Top row shows RB, Clear, and “>>>”; below is the list and two session toggles (Auto-Paste, Hotkeys). [web:22][web:18]
+- Collapsed: Minimal panel with “Ditto” text; no buttons or list visible; click anywhere on the panel to expand.
+- Expanded: Top row shows RB, Clear, and “>>>”; below is the list and two session toggles (Auto-Paste, Hotkeys).
 
 ## Configuration (edit in script)
-- Constant inserted by RB: `global RB_VALUE := "Your_constant_value"` (typed with SendInput {Text}). [web:7]
-- History size: `MaxHistory := 10` (number of recent text entries kept). [web:21]
-- GUI width: `GuiWidth := 290` (overall panel width). [web:22]
-- Screen margin: `SafeMargin := 14` (keeps the window within the work area). [web:22]
-- Poll interval: `SetTimer, CheckClipboard, 500` (clipboard polling in ms). [web:22]
-- Defaults: `AutoPasteEnabled := true`, `HotkeysEnabled := true`. [web:22]
-- Collapsed size: `NewWidth := 110`, `NewHeight := 60` in `ToggleCollapse`. [web:22]
-- Transparency: `WinSet, Transparent, 180` in `ShowClipboardGUI`. [web:22]
-- Preview length (truncation): `FormatPreview(txt, maxLen := 27)`. [web:21]
+- Constant used by RB: `global RB_VALUE := "Your_constant_value"`
+- History size: `MaxHistory := 10`
+- GUI width: `GuiWidth := 290`
+- Screen margin: `SafeMargin := 14`
+- Clipboard polling interval: `SetTimer, CheckClipboard, 500` (ms)
+- Defaults: `AutoPasteEnabled := true`, `HotkeysEnabled := true`
+- Collapsed size: `NewWidth := 110`, `NewHeight := 60` (in `ToggleCollapse`)
+- Transparency: `WinSet, Transparent, 180` (in `ShowClipboardGUI`)
+- Preview length: `FormatPreview(txt, maxLen := 27)`
 
 ## Behavior Details
-- Non-activating: The GUI is set with `WS_EX_NOACTIVATE`, preventing focus theft; interaction with your active app remains smooth. [web:22]
-- De-duplication: New clipboard text is inserted only if not equal to the last seen and not already present in history. [web:21]
-- Pasting with hotkeys: Ctrl+1..Ctrl+5 set the clipboard to the chosen history entry and send Ctrl+V to the active window (respecting Hotkeys toggle). [web:7][web:22]
-- List click: Selecting an item sets the clipboard and optionally pastes (respecting Auto-Paste). [web:21]
-- Clear reset: Clears in-app history and resets toggles; does not empty the Windows clipboard. [web:21]
-- RB typing: Uses `{Text}` mode to type the constant literally, avoiding interpretation of special characters and leaving the clipboard intact. [web:7]
+- Non-activating overlay: Uses WS_EX_NOACTIVATE so the overlay stays on top without stealing focus.
+- De-duplication: New clipboard text is added only if different from the last seen and not already in history.
+- Hotkey paste (Ctrl+1..Ctrl+5): Sets the clipboard to the chosen history entry and sends Ctrl+V (if Hotkeys toggle is ON).
+- List click: Selecting an item sets the clipboard and optionally pastes (if Auto-Paste toggle is ON).
+- Clear reset: Clears in-app history and resets toggles; does not empty the Windows clipboard.
+- RB typing: Uses `{Text}` mode to type the constant literally, avoiding interpretation of special characters and leaving the clipboard intact.
 
 ## Known Limitations
-- Text-only history; images/files are not tracked. [web:21]
-- Some applications with nonstandard input fields may require adjusting paste delays (e.g., `Sleep, 70`) or using alternative send modes. [web:7]
-- Clipboard polling interval balances responsiveness and overhead; tune `CheckClipboard` timer as needed. [web:22]
+- Text-only history; images/files are not handled.
+- Some apps with nonstandard input fields may require adjusting the paste delay (e.g., `Sleep, 70`) or an alternative send mode.
+- Clipboard polling interval trades responsiveness for overhead; tweak `CheckClipboard` timer as needed.
 
 ## Security/Focus Notes
-- Always-on-top is reinforced periodically; screen bounds are clamped to the monitor work area to prevent the overlay from drifting off-screen. [web:22]
-- The overlay’s transparency and non-activating style are chosen to minimize disruption during typing. [web:22]
+- Always-on-top is reinforced periodically; window position is clamped to the monitor work area to keep the overlay visible.
+- Transparency and non-activating style aim to minimize disruption while typing.
 
 ## Roadmap Ideas
-- Optional history persistence across sessions. [web:22]
-- Image/file clipboard support and formatting-aware paste. [web:22]
-- Customizable hotkeys beyond Ctrl+1..Ctrl+5 (opt-in). [web:22]
+- Optional history persistence across sessions.
+- Image/file clipboard support; formatting-aware paste.
+- Customizable hotkeys beyond Ctrl+1..Ctrl+5 (opt-in).
 
 ## License
-MIT. [web:84]
+MIT

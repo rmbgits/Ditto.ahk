@@ -4,7 +4,7 @@ Ditto by Rafał Bobrowski
 Otwarta, lekka alternatywa dla klasycznego Ditto — overlay schowka w stylu Ditto, napisany w AutoHotkey v1. 
 Zawsze‑on‑top, obsługa historii, hotkeye, zwijany tryb. 
 Autor: Rafał Bobrowski
-GitHub: https://github.com/rmbgits/Ditto.ahk
+GitHub: [https://github.com/rmbgits/Ditto.ahk](https://github.com/rmbgits/Ditto.ahk)
 Zapisz plik po edycji jako UTF-8 with BOM
 ---------------------------------------------------------
 */
@@ -41,9 +41,13 @@ global CollapsedLbl
 global AutoPasteChk
 global HotkeysChk
 global ClearBtn
-global RbBtn
 global ToggleBtn
-global RbValBtn
+
+; NEW: S1/S2 controls
+global S1ValBtn
+global S1BtnTop
+global S2ValBtn
+global S2BtnBottom
 
 ; collapsed size
 global CollapsedW := 110
@@ -66,10 +70,12 @@ global FullH := ""
 global AutoPasteEnabled := true
 global HotkeysEnabled := true
 
-; RB value
-global RB_VALUE := "Rafał Bobrowski"
+; Stałe do wklejania
+global S1_VALUE := "Stała 1"
+global S2_VALUE := "Stała 2"
 if (USE_INI && FileExist(IniPath)) {
-    IniRead, RB_VALUE, %IniPath%, RB, Value, %RB_VALUE%
+    IniRead, S1_VALUE, %IniPath%, S1, Value, %S1_VALUE%
+    IniRead, S2_VALUE, %IniPath%, S2, Value, %S2_VALUE%
 }
 
 Clipboard := ""
@@ -150,33 +156,35 @@ return
 
 ShowClipboardGUI() {
     global GuiWidth, SafeMargin, M, G, TitleH, BtnH, ListH, CheckH, WindowTitle
-    global MyList, CollapsedLbl, AutoPasteChk, HotkeysChk, ClearBtn, RbBtn, ToggleBtn, RbValBtn
+    global MyList, CollapsedLbl, AutoPasteChk, HotkeysChk, ClearBtn, ToggleBtn
     global ToggleBtnAbsX, ToggleBtnAbsY, ToggleFullW, ToggleFullH
+    global S1ValBtn, S1BtnTop, S2ValBtn, S2BtnBottom
 
     SysGet, MonitorWorkArea, MonitorWorkArea
 
     InnerW := GuiWidth - 2*M
-    totalH := M + TitleH + G + ListH + G + CheckH + M
+    ; totalH ulegnie korekcie po dodaniu dolnych przycisków S2
+    totalH := M + TitleH + G + ListH + G + CheckH + G + BtnH + M
 
     x := MonitorWorkAreaRight - GuiWidth - SafeMargin
     y := MonitorWorkAreaTop + ((MonitorWorkAreaBottom - MonitorWorkAreaTop) // 2) - (totalH // 2)
 
     BtnY := M + ((TitleH - BtnH) // 2)
 
-    ; Top row: RB value | RB | Clear | >>>
+    ; Top row: S1 value | S1 | Clear | >>>
     ValW := 84
-    RbW  := 44
+    S1W  := 44
     ClrW := 56
     TglW := ToggleFullW
 
     TglX := M + InnerW - TglW
     ClrX := TglX - G - ClrW
-    RbX  := ClrX - G - RbW
-    ValX := RbX - G - ValW
+    S1X  := ClrX - G - S1W
+    ValX := S1X - G - ValW
     if (ValX < M) {
         ValX := M
-        RbX := ValX + ValW + G
-        ClrX := RbX + RbW + G
+        S1X := ValX + ValW + G
+        ClrX := S1X + S1W + G
         TglX := ClrX + ClrW + G
     }
 
@@ -192,8 +200,9 @@ ShowClipboardGUI() {
     WS_EX_NOACTIVATE := 0x08000000
     DllCall("SetWindowLong", "Ptr", hwnd, "Int", -20, "UInt", exStyle | WS_EX_NOACTIVATE)
 
-    Gui, Add, Button, vRbValBtn gOpenRbValue x%ValX% y%BtnY% w%ValW% h%BtnH%, RB value
-    Gui, Add, Button, vRbBtn     gPasteRB     x%RbX%  y%BtnY% w%RbW%  h%BtnH%, RB
+    ; TOP: S1 value + S1, Clear, >>>
+    Gui, Add, Button, vS1ValBtn gOpenS1Value x%ValX% y%BtnY% w%ValW% h%BtnH%, S1 value
+    Gui, Add, Button, vS1BtnTop  gPasteS1    x%S1X%  y%BtnY% w%S1W%  h%BtnH%, S1
     Gui, Add, Button, vClearBtn  gClearClipboard x%ClrX% y%BtnY% w%ClrW% h%BtnH%, Clear
     Gui, Add, Button, vToggleBtn gToggleCollapse x%TglX% y%BtnY% w%TglW% h%BtnH%, >>>
 
@@ -210,6 +219,17 @@ ShowClipboardGUI() {
     Gui, Add, Checkbox, vAutoPasteChk gToggleAutoPaste x%AutoX% y%CheckY% w%AutoW% h%CheckH% Checked1, Auto-Paste
     Gui, Add, Checkbox, vHotkeysChk gToggleHotkeys x%KeysX% y%CheckY% w%KeysW% h%CheckH% Checked1, Keys(Ctrl+1)
 
+    ; Bottom row: S2 value | S2 (pełna szerokość/połowy jak checkboxy)
+    BottomY := CheckY + CheckH + G
+    S2ValW := AutoW
+    S2W := AutoW
+    S2ValX := AutoX
+    S2X    := KeysX
+
+    Gui, Add, Button, vS2ValBtn gOpenS2Value x%S2ValX% y%BottomY% w%S2ValW% h%BtnH%, S2 value
+    Gui, Add, Button, vS2BtnBottom gPasteS2   x%S2X%    y%BottomY% w%S2W%    h%BtnH%, S2
+
+    ; Collapsed label
     Gui, Add, Text, vCollapsedLbl x%M% y%M% w64 h%TitleH% Center, Ditto
     GuiControl, Hide, CollapsedLbl
 
@@ -233,39 +253,72 @@ ShowClipboardGUI() {
     GuiControl, Hide, CollapsedLbl
 }
 
-; --------------------------- RB value modal ---------------------------
+; --------------------------- S1/S2 value modals ---------------------------
 
-OpenRbValue:
-    global RB_VALUE, USE_INI, IniPath
-    Gui, RB: New, +AlwaysOnTop +Border +Owner +Caption, RB value
-    Gui, RB: Font, s10, Segoe UI
-    Gui, RB: Margin, 10, 10
-    Gui, RB: Add, Text, w320, type value u want to paste by RB button
-    Gui, RB: Add, Edit, vRBValEdit w320 h26, %RB_VALUE%
-    Gui, RB: Add, Button, gRB_Save w80 h26, Save
-    Gui, RB: Add, Button, gRB_Cancel w80 h26 x+8, Cancel
-    Gui, RB: Show, AutoSize Center
-    Gui, RB: Default
-    ControlFocus, Edit1, RB value
+OpenS1Value:
+    global S1_VALUE, USE_INI, IniPath
+    Gui, S1: New, +AlwaysOnTop +Border +Owner +Caption, S1 value
+    Gui, S1: Font, s10, Segoe UI
+    Gui, S1: Margin, 10, 10
+    Gui, S1: Add, Text, w320, type value for S1
+    Gui, S1: Add, Edit, vS1ValEdit w320 h26, %S1_VALUE%
+    Gui, S1: Add, Button, gS1_Save w80 h26, Save
+    Gui, S1: Add, Button, gS1_Cancel w80 h26 x+8, Cancel
+    Gui, S1: Show, AutoSize Center
+    Gui, S1: Default
+    ControlFocus, Edit1, S1 value
 return
 
-RB_Save:
-    global RB_VALUE, USE_INI, IniPath
-    Gui, RB: Submit
-    if (RBValEdit != "")
-        RB_VALUE := RBValEdit
+S1_Save:
+    global S1_VALUE, USE_INI, IniPath
+    Gui, S1: Submit
+    if (S1ValEdit != "")
+        S1_VALUE := S1ValEdit
     if (USE_INI) {
-        IniWrite, %RB_VALUE%, %IniPath%, RB, Value
-        Gui, RB: Destroy
+        IniWrite, %S1_VALUE%, %IniPath%, S1, Value
+        Gui, S1: Destroy
     } else {
-        __UpdateSelfRBValue(RB_VALUE)
-        Gui, RB: Destroy
+        __UpdateSelfConstValue("S1_VALUE", S1_VALUE)
+        Gui, S1: Destroy
         Reload
     }
 return
 
-RB_Cancel:
-    Gui, RB: Destroy
+S1_Cancel:
+    Gui, S1: Destroy
+return
+
+OpenS2Value:
+    global S2_VALUE, USE_INI, IniPath
+    Gui, S2: New, +AlwaysOnTop +Border +Owner +Caption, S2 value
+    Gui, S2: Font, s10, Segoe UI
+    Gui, S2: Margin, 10, 10
+    Gui, S2: Add, Text, w320, type value for S2
+    Gui, S2: Add, Edit, vS2ValEdit w320 h26, %S2_VALUE%
+    Gui, S2: Add, Button, gS2_Save w80 h26, Save
+    Gui, S2: Add, Button, gS2_Cancel w80 h26 x+8, Cancel
+    Gui, S2: Show, AutoSize Center
+    Gui, S2: Default
+    ControlFocus, Edit1, S2 value
+return
+
+S2_Save:
+    global S2_VALUE, USE_INI, IniPath
+    Gui, S2: Submit
+    if (S2ValEdit != "")
+        S2_VALUE := S2ValEdit
+    if (USE_INI) {
+        IniWrite, %S2_VALUE%, %IniPath%, S2, Value
+        Gui, S2: Destroy
+    } else {
+        __UpdateSelfConstValue("S2_VALUE", S2_VALUE)
+        Gui, S2: Destroy
+        Reload
+    }
+return
+
+S2_Cancel:
+    Gui, S2: Destroy
 return
 
 ; --------------------------- Collapse / Expand ---------------------------
@@ -274,7 +327,8 @@ ToggleCollapse:
     global IsCollapsed, WindowTitle
     global M, SafeMargin, CollapsedW, CollapsedH
     global FullX, FullY, FullW, FullH
-    global MyList, AutoPasteChk, HotkeysChk, ClearBtn, RbBtn, ToggleBtn, CollapsedLbl, RbValBtn
+    global MyList, AutoPasteChk, HotkeysChk, ClearBtn, ToggleBtn, CollapsedLbl
+    global S1ValBtn, S1BtnTop, S2ValBtn, S2BtnBottom
 
     SysGet, m, MonitorWorkArea
 
@@ -293,9 +347,11 @@ ToggleCollapse:
         GuiControl, Hide, AutoPasteChk
         GuiControl, Hide, HotkeysChk
         GuiControl, Hide, ClearBtn
-        GuiControl, Hide, RbBtn
         GuiControl, Hide, ToggleBtn
-        GuiControl, Hide, RbValBtn
+        GuiControl, Hide, S1ValBtn
+        GuiControl, Hide, S1BtnTop
+        GuiControl, Hide, S2ValBtn
+        GuiControl, Hide, S2BtnBottom
         GuiControl, Show, CollapsedLbl
 
         WinMove, %WindowTitle%,, cx, cy, NewWidth, NewHeight
@@ -305,21 +361,20 @@ ToggleCollapse:
         OnMessage(0x201, "CollapsedClick")
         WinSet, AlwaysOnTop, On, %WindowTitle%
     } else {
-        rx := FullX, ry := FullY, rw := FullW, rh := FullH
+        ; Re-anchor based on collapsed position
+        WinGetPos, cX, cY, cW, cH, %WindowTitle%
+        __GetWorkAreaFromPos(cX + cW//2, cY + cH//2, monL, monT, monR, monB)
+        rw := (FullW ? FullW : GuiWidth)
+        rh := (FullH ? FullH : (M + TitleH + G + ListH + G + CheckH + G + BtnH + M))
+        rx := monR - rw - SafeMargin
+        ry := cY
 
-        changed := false
-        if (rx + rw > mRight - 1) {
-            rx := mRight - rw - SafeMargin, changed := true
-        }
-        if (rx < mLeft + SafeMargin) {
-            rx := mLeft + SafeMargin, changed := true
-        }
-        if (ry < mTop + SafeMargin) {
-            ry := mTop + SafeMargin, changed := true
-        }
-        if (ry + rh > mBottom - SafeMargin) {
-            ry := mBottom - rh - SafeMargin, changed := true
-        }
+        if (rx < monL + SafeMargin)
+            rx := monL + SafeMargin
+        if (ry < monT + SafeMargin)
+            ry := monT + SafeMargin
+        if (ry + rh > monB - SafeMargin)
+            ry := monB - rh - SafeMargin
 
         WinMove, %WindowTitle%,, rx, ry, rw, rh
 
@@ -327,9 +382,11 @@ ToggleCollapse:
         GuiControl, Show, AutoPasteChk
         GuiControl, Show, HotkeysChk
         GuiControl, Show, ClearBtn
-        GuiControl, Show, RbBtn
         GuiControl, Show, ToggleBtn
-        GuiControl, Show, RbValBtn
+        GuiControl, Show, S1ValBtn
+        GuiControl, Show, S1BtnTop
+        GuiControl, Show, S2ValBtn
+        GuiControl, Show, S2BtnBottom
         GuiControl, Hide, CollapsedLbl
 
         UpdateList()
@@ -418,11 +475,17 @@ ClearClipboard:
     GuiControl,, HotkeysChk, 1
 return
 
-; RB: wstawia stały tekst przez SendInput
-PasteRB:
-    global RB_VALUE
+; Wklejanie stałych S1/S2
+PasteS1:
+    global S1_VALUE
     Sleep, 40
-    SendInput, %RB_VALUE%
+    SendInput, %S1_VALUE%
+return
+
+PasteS2:
+    global S2_VALUE
+    Sleep, 40
+    SendInput, %S2_VALUE%
 return
 
 ; --------------------------- Guards & utilities ---------------------------
@@ -486,35 +549,52 @@ __ClampRect(mLeft, mTop, mRight, mBottom, ByRef x, ByRef y, ByRef w, ByRef h, ma
         y := mBottom - h - margin
 }
 
-; --------------------------- Self-update RB_VALUE ---------------------------
+; Zwraca obszar roboczy monitora, w którym leży dany punkt (px,py)
+__GetWorkAreaFromPos(px, py, ByRef L, ByRef T, ByRef R, ByRef B) {
+    SysGet, monCount, MonitorCount
+    bestIdx := 0
+    Loop %monCount% {
+        SysGet, mA, MonitorWorkArea, %A_Index%
+        if (px >= mALeft && px <= mARight && py >= mATop && py <= mABottom) {
+            bestIdx := A_Index
+            break
+        }
+    }
+    if (bestIdx = 0) {
+        SysGet, mP, MonitorWorkArea
+        L := mPLeft, T := mPTop, R := mPRight, B := mPBottom
+    } else {
+        SysGet, mSel, MonitorWorkArea, %bestIdx%
+        L := mSelLeft, T := mSelTop, R := mSelRight, B := mSelBottom
+    }
+}
 
-__UpdateSelfRBValue(newVal) {
+; Podmiana stałej w pliku skryptu
+__UpdateSelfConstValue(constName, newVal) {
     global ScriptPath
     FileRead, src, %ScriptPath%
     if (ErrorLevel) {
-        MsgBox, 16, RB, Nie udało się odczytać pliku skryptu: %ScriptPath%
+        MsgBox, 16, Const, Nie udało się odczytać pliku skryptu: %ScriptPath%
         return
     }
     newValEsc := StrReplace(newVal, """", """""")
     newSrc := ""
     replaced := false
+    pattern := "i)^\s*global\s+" constName "\s*:="
     Loop, Parse, src, `n, `r
     {
         line := A_LoopField
-        if (!replaced && RegExMatch(line, "i)^\s*global\s+RB_VALUE\s*:=")) {
-            newSrc .= "global RB_VALUE := """ newValEsc """" "`r`n"
+        if (!replaced && RegExMatch(line, pattern)) {
+            newSrc .= "global " constName " := """ newValEsc """" "`r`n"
             replaced := true
         } else {
             newSrc .= line "`r`n"
         }
     }
     if (!replaced) {
-        MsgBox, 48, RB, Nie znaleziono linii 'global RB_VALUE := "...' do podmiany.
+        MsgBox, 48, Const, Nie znaleziono linii 'global %constName% := "...' do podmiany.
         return
     }
     FileDelete, %ScriptPath%
     FileAppend, %newSrc%, %ScriptPath%, UTF-8
 }
-
-
-

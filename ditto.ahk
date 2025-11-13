@@ -1,13 +1,19 @@
 /*
 Ditto by Rafał Bobrowski
+
 ---------------------------------------------------------
 Otwarta, lekka alternatywa dla klasycznego Ditto — overlay schowka w stylu Ditto, napisany w AutoHotkey v1. 
+
 Zawsze‑on‑top, obsługa historii, hotkeye, zwijany tryb. 
+
 Autor: Rafał Bobrowski
+
 GitHub: [https://github.com/rmbgits/Ditto.ahk](https://github.com/rmbgits/Ditto.ahk)
+
 Zapisz plik po edycji jako UTF-8 with BOM
 ---------------------------------------------------------
 */
+
 #NoEnv
 #Persistent
 #SingleInstance Ignore
@@ -16,7 +22,6 @@ SetWinDelay, 0
 
 WindowTitle := "Ditto by RB"
 ScriptPath := A_ScriptFullPath
-; Ustaw na true, jeśli chcesz wrócić do pliku INI
 USE_INI := false
 IniPath := A_ScriptDir . "\DittoRB.ini"
 
@@ -24,44 +29,38 @@ MaxHistory := 10
 ClipHistory := []
 
 global IsCollapsed := false
-global GuiWidth := 290
+
+; Bazowa rozdzielczość i rozmiary względem laptopa FHD 1920x1080
+global REF_W := 1920
+global REF_H := 1080
+global BASE_GuiWidth := 290
+global BASE_M := 12
+global BASE_G := 8
+global BASE_TitleH := 26
+global BASE_BtnH := 26
+global BASE_ListH := 186
+global BASE_CheckH := 24
+global BASE_CollapsedW := 110
+global BASE_CollapsedH := 60
+global BASE_ToggleFullW := 46
+global BASE_ToggleFullH := 26
 global SafeMargin := 14
 
-; Layout
-global M := 12
-global G := 8
-global TitleH := 26
-global BtnH := 26
-global ListH := 186
-global CheckH := 24
-
-; GUI controls
 global MyList
 global CollapsedLbl
 global AutoPasteChk
 global HotkeysChk
 global ClearBtn
 global ToggleBtn
-
-; NEW: S1/S2 controls
 global S1ValBtn
 global S1BtnTop
 global S2ValBtn
 global S2BtnBottom
 
-; collapsed size
-global CollapsedW := 110
-global CollapsedH := 60
-
-; Toggle geometry
 global ToggleBtnAbsX := 0
 global ToggleBtnAbsY := 0
-global ToggleFullW := 46
-global ToggleFullH := 26
 
 global LastSeen := ""
-
-; Restore size
 global FullX := ""
 global FullY := ""
 global FullW := ""
@@ -70,9 +69,8 @@ global FullH := ""
 global AutoPasteEnabled := true
 global HotkeysEnabled := true
 
-; Stałe do wklejania
-global S1_VALUE := "Stała 1"
-global S2_VALUE := "Stała 2"
+global S1_VALUE := "Rafał Bobrowski"
+global S2_VALUE := "Stała wartość 2"
 if (USE_INI && FileExist(IniPath)) {
     IniRead, S1_VALUE, %IniPath%, S1, Value, %S1_VALUE%
     IniRead, S2_VALUE, %IniPath%, S2, Value, %S2_VALUE%
@@ -81,7 +79,6 @@ if (USE_INI && FileExist(IniPath)) {
 Clipboard := ""
 LastSeen := ""
 
-; Timers
 SetTimer, CheckClipboard, 500
 SetTimer, __GuardTopmostAndBounds, 3000
 SetTimer, __TrackFullPosition, 800
@@ -155,26 +152,45 @@ return
 ; --------------------------- GUI creation ---------------------------
 
 ShowClipboardGUI() {
-    global GuiWidth, SafeMargin, M, G, TitleH, BtnH, ListH, CheckH, WindowTitle
+    global REF_W, REF_H
+    global BASE_GuiWidth, BASE_M, BASE_G, BASE_TitleH, BASE_BtnH, BASE_ListH, BASE_CheckH
+    global BASE_CollapsedW, BASE_CollapsedH, BASE_ToggleFullW, BASE_ToggleFullH
+    global GuiWidth, M, G, TitleH, BtnH, ListH, CheckH, CollapsedW, CollapsedH, ToggleFullW, ToggleFullH
+    global SafeMargin, WindowTitle
     global MyList, CollapsedLbl, AutoPasteChk, HotkeysChk, ClearBtn, ToggleBtn
-    global ToggleBtnAbsX, ToggleBtnAbsY, ToggleFullW, ToggleFullH
-    global S1ValBtn, S1BtnTop, S2ValBtn, S2BtnBottom
+    global ToggleBtnAbsX, ToggleBtnAbsY, S1ValBtn, S1BtnTop, S2ValBtn, S2BtnBottom
 
     SysGet, MonitorWorkArea, MonitorWorkArea
 
+    screenW := MonitorWorkAreaRight - MonitorWorkAreaLeft
+    screenH := MonitorWorkAreaBottom - MonitorWorkAreaTop
+
+    scaleW := screenW / REF_W
+    scaleH := screenH / REF_H
+
+    GuiWidth := Round(BASE_GuiWidth * scaleW)
+    M := Round(BASE_M * scaleW)
+    G := Round(BASE_G * scaleW)
+    TitleH := Round(BASE_TitleH * scaleH)
+    BtnH := Round(BASE_BtnH * scaleH)
+    ListH := Round(BASE_ListH * scaleH)
+    CheckH := Round(BASE_CheckH * scaleH)
+    CollapsedW := Round(BASE_CollapsedW * scaleW)
+    CollapsedH := Round(BASE_CollapsedH * scaleH)
+    ToggleFullW := Round(BASE_ToggleFullW * scaleW)
+    ToggleFullH := Round(BASE_ToggleFullH * scaleH)
+
     InnerW := GuiWidth - 2*M
-    ; totalH ulegnie korekcie po dodaniu dolnych przycisków S2
     totalH := M + TitleH + G + ListH + G + CheckH + G + BtnH + M
 
     x := MonitorWorkAreaRight - GuiWidth - SafeMargin
-    y := MonitorWorkAreaTop + ((MonitorWorkAreaBottom - MonitorWorkAreaTop) // 2) - (totalH // 2)
+    y := MonitorWorkAreaTop + (screenH // 4)
 
     BtnY := M + ((TitleH - BtnH) // 2)
 
-    ; Top row: S1 value | S1 | Clear | >>>
-    ValW := 84
-    S1W  := 44
-    ClrW := 56
+    ValW := Round(84 * scaleW)
+    S1W  := Round(44 * scaleW)
+    ClrW := Round(56 * scaleW)
     TglW := ToggleFullW
 
     TglX := M + InnerW - TglW
@@ -200,7 +216,6 @@ ShowClipboardGUI() {
     WS_EX_NOACTIVATE := 0x08000000
     DllCall("SetWindowLong", "Ptr", hwnd, "Int", -20, "UInt", exStyle | WS_EX_NOACTIVATE)
 
-    ; TOP: S1 value + S1, Clear, >>>
     Gui, Add, Button, vS1ValBtn gOpenS1Value x%ValX% y%BtnY% w%ValW% h%BtnH%, S1 value
     Gui, Add, Button, vS1BtnTop  gPasteS1    x%S1X%  y%BtnY% w%S1W%  h%BtnH%, S1
     Gui, Add, Button, vClearBtn  gClearClipboard x%ClrX% y%BtnY% w%ClrW% h%BtnH%, Clear
@@ -219,7 +234,6 @@ ShowClipboardGUI() {
     Gui, Add, Checkbox, vAutoPasteChk gToggleAutoPaste x%AutoX% y%CheckY% w%AutoW% h%CheckH% Checked1, Auto-Paste
     Gui, Add, Checkbox, vHotkeysChk gToggleHotkeys x%KeysX% y%CheckY% w%KeysW% h%CheckH% Checked1, Keys(Ctrl+1)
 
-    ; Bottom row: S2 value | S2 (pełna szerokość/połowy jak checkboxy)
     BottomY := CheckY + CheckH + G
     S2ValW := AutoW
     S2W := AutoW
@@ -229,7 +243,6 @@ ShowClipboardGUI() {
     Gui, Add, Button, vS2ValBtn gOpenS2Value x%S2ValX% y%BottomY% w%S2ValW% h%BtnH%, S2 value
     Gui, Add, Button, vS2BtnBottom gPasteS2   x%S2X%    y%BottomY% w%S2W%    h%BtnH%, S2
 
-    ; Collapsed label
     Gui, Add, Text, vCollapsedLbl x%M% y%M% w64 h%TitleH% Center, Ditto
     GuiControl, Hide, CollapsedLbl
 
@@ -252,8 +265,6 @@ ShowClipboardGUI() {
     IsCollapsed := false
     GuiControl, Hide, CollapsedLbl
 }
-
-; --------------------------- S1/S2 value modals ---------------------------
 
 OpenS1Value:
     global S1_VALUE, USE_INI, IniPath
@@ -321,8 +332,6 @@ S2_Cancel:
     Gui, S2: Destroy
 return
 
-; --------------------------- Collapse / Expand ---------------------------
-
 ToggleCollapse:
     global IsCollapsed, WindowTitle
     global M, SafeMargin, CollapsedW, CollapsedH
@@ -337,7 +346,8 @@ ToggleCollapse:
         NewHeight := CollapsedH
 
         cx := mRight - NewWidth - SafeMargin
-        cy := FullY
+        cy := mTop + ((mBottom - mTop) // 4)
+
         if (cy < mTop + SafeMargin)
             cy := mTop + SafeMargin
         if (cy + NewHeight > mBottom - SafeMargin)
@@ -361,16 +371,13 @@ ToggleCollapse:
         OnMessage(0x201, "CollapsedClick")
         WinSet, AlwaysOnTop, On, %WindowTitle%
     } else {
-        ; Re-anchor based on collapsed position
         WinGetPos, cX, cY, cW, cH, %WindowTitle%
         __GetWorkAreaFromPos(cX + cW//2, cY + cH//2, monL, monT, monR, monB)
         rw := (FullW ? FullW : GuiWidth)
         rh := (FullH ? FullH : (M + TitleH + G + ListH + G + CheckH + G + BtnH + M))
         rx := monR - rw - SafeMargin
-        ry := cY
+        ry := monT + ((monB - monT) // 4)
 
-        if (rx < monL + SafeMargin)
-            rx := monL + SafeMargin
         if (ry < monT + SafeMargin)
             ry := monT + SafeMargin
         if (ry + rh > monB - SafeMargin)
@@ -395,7 +402,6 @@ ToggleCollapse:
         IsCollapsed := false
         OnMessage(0x201, "")
         WinSet, AlwaysOnTop, On, %WindowTitle%
-
         FullX := rx
         FullY := ry
         FullW := rw
@@ -409,8 +415,6 @@ CollapsedClick(wParam, lParam, msg, hwnd) {
 __ExpandFromClick:
     Gosub, ToggleCollapse
 return
-
-; --------------------------- Toggles & list ---------------------------
 
 ToggleAutoPaste:
     Gui, Submit, NoHide
@@ -440,8 +444,6 @@ GuiClose:
     Gui, Hide
 return
 
-; --------------------------- Hotkeys historii ---------------------------
-
 ^1::PasteByNumber(1)
 ^2::PasteByNumber(2)
 ^3::PasteByNumber(3)
@@ -462,8 +464,6 @@ PasteByNumber(n) {
     }
 }
 
-; --------------------------- Buttons logic ---------------------------
-
 ClearClipboard:
     global ClipHistory, LastSeen, AutoPasteEnabled, HotkeysEnabled
     ClipHistory := []
@@ -475,7 +475,6 @@ ClearClipboard:
     GuiControl,, HotkeysChk, 1
 return
 
-; Wklejanie stałych S1/S2
 PasteS1:
     global S1_VALUE
     Sleep, 40
@@ -487,8 +486,6 @@ PasteS2:
     Sleep, 40
     SendInput, %S2_VALUE%
 return
-
-; --------------------------- Guards & utilities ---------------------------
 
 OnDisplayChange(wParam, lParam, msg, hwnd) {
     SetTimer, __GuardTopmostAndBounds, -1
@@ -549,7 +546,6 @@ __ClampRect(mLeft, mTop, mRight, mBottom, ByRef x, ByRef y, ByRef w, ByRef h, ma
         y := mBottom - h - margin
 }
 
-; Zwraca obszar roboczy monitora, w którym leży dany punkt (px,py)
 __GetWorkAreaFromPos(px, py, ByRef L, ByRef T, ByRef R, ByRef B) {
     SysGet, monCount, MonitorCount
     bestIdx := 0
@@ -569,7 +565,6 @@ __GetWorkAreaFromPos(px, py, ByRef L, ByRef T, ByRef R, ByRef B) {
     }
 }
 
-; Podmiana stałej w pliku skryptu
 __UpdateSelfConstValue(constName, newVal) {
     global ScriptPath
     FileRead, src, %ScriptPath%
@@ -592,7 +587,7 @@ __UpdateSelfConstValue(constName, newVal) {
         }
     }
     if (!replaced) {
-        MsgBox, 48, Const, Nie znaleziono linii 'global %constName% := "...' do podmiany.
+        MsgBox, 48, Const, Nie znaleziono linii 'global %constName% := \"...\"' do podmiany.
         return
     }
     FileDelete, %ScriptPath%
